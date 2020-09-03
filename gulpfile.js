@@ -1,10 +1,11 @@
 const gulp = require('gulp'),
     autoprefixer = require('gulp-autoprefixer'), // автопрефиксер
+    babel = require('gulp-babel'), //
     browserSync = require('browser-sync'), // обновление браузера
     cssmin = require('gulp-csso'), // минифицирует CSS
     del = require('del'), // удаляет файлы
     imagemin = require('gulp-imagemin'), // сжимает картинки
-    jsmin = require('gulp-uglify'), // минифицирует JS
+    jsmin = require('gulp-terser'), // минифицирует JS
     groupMedia = require('gulp-group-css-media-queries'), // объединяет медиа-файлы
     htmlmin = require('gulp-htmlmin'), // минифицирует HTML
     notify = require('gulp-notify'), // выводит сообщение об ошибке
@@ -13,6 +14,7 @@ const gulp = require('gulp'),
     include = require('posthtml-include'), // инклюд html
     rename = require('gulp-rename'), // переименовует файлы
     scss = require('gulp-sass'), // конвертиртирует sass в css
+    sourcemaps = require('gulp-sourcemaps'), // создаёт source maps
     svgstore = require('gulp-svgstore'), // создаёт спрайт svg
     webp = require('gulp-webp'), //  конвертиртирует PNG, JPEG в WebP.
     webpcss = require("gulp-webp-css"), // заменяет в CSS картинки на WebP 
@@ -41,6 +43,7 @@ const styles = () => {
         .pipe(plumber({
             errorHandler: notify.onError('Error: <%= error.message %>')
         }))
+        .pipe(sourcemaps.init())
         .pipe(
             scss({
                 outputStyle: "expanded"
@@ -59,6 +62,7 @@ const styles = () => {
         .pipe(gulp.dest('dist/css'))
         .pipe(cssmin())
         .pipe(rename('style.min.css'))
+        .pipe(sourcemaps.write('/'))
         .pipe(gulp.dest('dist/css'))
         .pipe(browserSync.stream());
 };
@@ -67,20 +71,31 @@ exports.styles = styles;
 
 // Scripts
 const scripts = () => {
-    return gulp.src('src/scripts/index.js')
-        .pipe(posthtml([
-            include()
-        ]))
+    return gulp.src('src/scripts/script.js')
+        .pipe(babel({
+            presets: ['@babel/preset-env']
+        }))
+        .pipe(sourcemaps.init())
+        .pipe(posthtml([include()]))
         .pipe(gulp.dest('dist/js'))
         .pipe(jsmin())
-        .pipe(rename("index.min.js"))
-        .pipe(gulp.dest('dist/js'))
-        .pipe(gulp.src(['src/scripts/libs/*.js']))
+        .pipe(rename("script.min.js"))
+        .pipe(sourcemaps.write('/'))
         .pipe(gulp.dest('dist/js'))
         .pipe(browserSync.stream());
 };
 
 exports.scripts = scripts;
+
+// jsLibs
+const jsLibs = () => {
+    return gulp.src('src/scripts/libs/*.js')
+        .pipe(gulp.dest('dist/js/libs'))
+        .pipe(browserSync.stream());
+};
+
+exports.jsLibs = jsLibs;
+
 
 // Images
 const images = () => {
@@ -138,7 +153,8 @@ const clean = () => {
 const watch = () => {
     gulp.watch('src/*.html', gulp.series(html));
     gulp.watch('src/styles/**/*.scss', gulp.series(styles));
-    gulp.watch('src/scripts/**/*.js', gulp.series(scripts));
+    gulp.watch('src/scripts/*.js', gulp.series(scripts));
+    gulp.watch('src/scripts/libs/*.js', gulp.series(jsLibs));
     gulp.watch('src/images/**/*', gulp.series(images));
     gulp.watch('src/images/sprite-icons/*', gulp.series(sprite));
     gulp.watch('src/fonts/**/*', gulp.series(fonts));
@@ -166,6 +182,7 @@ exports.default = gulp.series(
         html,
         styles,
         scripts,
+        jsLibs,
         images,
         sprite,
         fonts
