@@ -165,6 +165,7 @@ exports.watch = watch;
 // Server
 const server = () => {
     browserSync.init({
+        cors: true,
         ui: false,
         notify: false,
         server: {
