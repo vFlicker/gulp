@@ -2,30 +2,29 @@ const gulp = require('gulp'),
     autoprefixer = require('gulp-autoprefixer'), // автопрефиксер
     babel = require('gulp-babel'), //
     browserSync = require('browser-sync'), // обновление браузера
+    concat = require('gulp-concat'), // объединяет файлы
     cssmin = require('gulp-csso'), // минифицирует CSS
     del = require('del'), // удаляет файлы
     imagemin = require('gulp-imagemin'), // сжимает картинки
     jsmin = require('gulp-terser'), // минифицирует JS
     groupMedia = require('gulp-group-css-media-queries'), // объединяет медиа-файлы
     htmlmin = require('gulp-htmlmin'), // минифицирует HTML
+    newer = require('gulp-newer'), // заменяет файлы только на новые
     notify = require('gulp-notify'), // выводит сообщение об ошибке
     plumber = require('gulp-plumber'), // не прекращает работу gulp'a при ошибке
-    posthtml = require('gulp-posthtml'), // для инклюда html
-    include = require('posthtml-include'), // инклюд html
+    include = require('gulp-file-include'), // инклюд html
     rename = require('gulp-rename'), // переименовует файлы
     scss = require('gulp-sass'), // конвертиртирует sass в css
     sourcemaps = require('gulp-sourcemaps'), // создаёт source maps
     svgstore = require('gulp-svgstore'), // создаёт спрайт svg
     webp = require('gulp-webp'), //  конвертиртирует PNG, JPEG в WebP.
-    webpcss = require("gulp-webp-css"), // заменяет в CSS картинки на WebP 
+    webpcss = require('gulp-webp-css'), // заменяет в CSS картинки на WebP 
     webphtml = require('gulp-webp-html'); // заменяет в HTML картинки на WebP 
 
 // HTML
 const html = () => {
     return gulp.src(['src/*.html', '!src/_*.html'])
-        .pipe(posthtml([
-            include()
-        ]))
+        .pipe(include())
         .pipe(webphtml())
         .pipe(htmlmin({
             removeComments: true,
@@ -76,7 +75,6 @@ const scripts = () => {
             presets: ['@babel/preset-env']
         }))
         .pipe(sourcemaps.init())
-        .pipe(posthtml([include()]))
         .pipe(gulp.dest('dist/js'))
         .pipe(jsmin())
         .pipe(rename("script.min.js"))
@@ -89,8 +87,11 @@ exports.scripts = scripts;
 
 // jsLibs
 const jsLibs = () => {
-    return gulp.src('src/scripts/libs/*.js')
-        .pipe(gulp.dest('dist/js/libs'))
+    return gulp
+        .src('src/scripts/libs/*.js')
+        .pipe(concat('libs.min.js'))
+        .pipe(jsmin())
+        .pipe(gulp.dest('dist/js'))
         .pipe(browserSync.stream());
 };
 
@@ -100,6 +101,7 @@ exports.jsLibs = jsLibs;
 // Images
 const images = () => {
     return gulp.src(['src/images/**/*.{png,jpg,svg}', '!src/images/sprite-icons/*.svg'])
+        .pipe(newer('dist/images'))
         .pipe(imagemin([
             imagemin.mozjpeg({
                 progressive: true
@@ -115,6 +117,7 @@ const images = () => {
         ]))
         .pipe(gulp.dest('dist/images'))
         .pipe(gulp.src('src/images/**/*.{jpg, png}'))
+        .pipe(newer('dist/images'))
         .pipe(webp({
             quality: 80
         }))
